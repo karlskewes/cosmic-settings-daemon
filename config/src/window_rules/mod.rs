@@ -36,12 +36,11 @@ pub struct PreciseApplicationException {
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
-pub struct WindowRuleException {
+pub struct WorkspaceAssignment {
     pub appid: String,
     pub title: String,
     pub enabled: bool,
     pub workspace_id: usize,
-    // TODO(karlskewes): what else? sticky, floating, etc..
 }
 
 // cosmic-config configuration state for `com.system76.CosmicSettings.WindowRules`
@@ -50,8 +49,7 @@ pub struct WindowRuleException {
 pub struct Config {
     pub tiling_exception_defaults: Vec<DefaultApplicationException>,
     pub tiling_exception_custom: Vec<PreciseApplicationException>,
-    // TODO(karlskewes): how does this get parsed from file?
-    pub window_rule_custom: Vec<WindowRuleException>,
+    pub workspace_assignment: Vec<WorkspaceAssignment>,
 }
 
 impl Config {
@@ -130,34 +128,34 @@ pub fn tiling_exceptions(context: &cosmic_config::Config) -> Vec<ApplicationExce
         .collect()
 }
 
-/// Get the current window rule exception configuration
-pub fn window_rule_exceptions(context: &cosmic_config::Config) -> Vec<WindowRuleException> {
-    // Load custom shortcuts defined by the user.
+/// Get the current workspace assignment configuration
+pub fn workspace_assignments(context: &cosmic_config::Config) -> Vec<WorkspaceAssignment> {
+    // Load custom assignments defined by the user.
     let custom = context
-        .get::<Vec<WindowRuleException>>("window_rule_custom")
+        .get::<Vec<WorkspaceAssignment>>("workspace_assignment")
         .unwrap_or_else(|why| {
             if why.is_err()
                 && let cosmic_config::Error::GetKey(_, err) = &why
                 && err.kind() != std::io::ErrorKind::NotFound
             {
-                tracing::error!("window rule custom config error: {why}");
+                tracing::error!("workspace assignment config error: {why}");
                 return Vec::new();
             }
-            tracing::debug!("window rule custom config not present: {why}");
+            tracing::debug!("workspace assignment config not present: {why}");
             Vec::new()
         });
 
     custom
         .iter()
-        .filter_map(|exception| {
-            if exception.enabled {
-                Some(WindowRuleException {
-                    appid: exception.appid.clone(),
-                    title: exception.title.clone(),
+        .filter_map(|assignment| {
+            if assignment.enabled {
+                Some(WorkspaceAssignment {
+                    appid: assignment.appid.clone(),
+                    title: assignment.title.clone(),
                     enabled: true, // TODO(karlskewes), this isn't needed here
                     // tiling_exceptions go through a precise (with enabled) -> default (without
                     // enabled). We could do the same but why if we're not merging. TBD.
-                    workspace_id: exception.workspace_id,
+                    workspace_id: assignment.workspace_id,
                 })
             } else {
                 None
